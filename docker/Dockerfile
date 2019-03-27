@@ -1,9 +1,5 @@
 FROM alpine:3.9
 
-RUN apk update
-
-# Kill above this line
-
 RUN apk --no-cache add bash postgresql postgresql-dev openrc python2 python2-dev gcc musl-dev
 RUN python -m ensurepip
 RUN pip install --upgrade pip
