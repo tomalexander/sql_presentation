@@ -1,0 +1,216 @@
+#+OPTIONS: ':nil *:t -:t ::t <:t H:2 \n:nil ^:t arch:headline
+#+OPTIONS: author:t broken-links:nil c:nil creator:nil
+#+OPTIONS: d:(not "LOGBOOK") date:nil e:t email:nil f:t inline:t num:t
+#+OPTIONS: p:nil pri:nil prop:nil stat:t tags:t tasks:t tex:t
+#+OPTIONS: timestamp:t title:t toc:nil todo:t |:t
+#+TITLE: PostgreSQL from SELECT to GROUP BY
+#+DATE: <2019-03-27 Wed>
+#+AUTHOR: Tom Alexander
+#+EMAIL: tom@stella.ai
+#+LANGUAGE: en
+#+SELECT_TAGS: export
+#+EXCLUDE_TAGS: noexport
+#+CREATOR: Emacs 26.1 (Org mode 9.1.9)
+#+latex_header: \mode<beamer>{\usetheme{Madrid}}
+#+BEAMER_COLOR_THEME: rose
+* Intro
+** What is SQL
+- SQL is a standardized language for interacting with relational databases
+- Name stands for "Structured Query Language"
+- Used by 6 out of the 10 most popular databases according to a 2018 StackOverflow survey
+  - MySQL
+  - SQL Server
+  - PostgreSQL
+  - SQLite
+  - MariaDB
+  - Microsoft Azure
+** Why should you know SQL
+- SQL enables you to gain insight into data quickly, without having to use a programming language like python
+
+For example:
+If I have a CSV that has server access logs in the following format:
+
+| user id | country | time on site |
+|---------+---------+--------------|
+|       1 | CA      |          415 |
+|     213 | US      |          320 |
+|     222 | US      |          918 |
+|     213 | US      |           20 |
+
+and I wanted to know what the average time each user spent on the site, I could write a python script
+
+** Why should you know SQL
+#+BEGIN_SRC python
+  user_times = {}
+  for visit in visit_log:
+      visit_times = user_times.get(visit.user_id, [])
+      visit_times.append(visit.duration)
+      user_times[visit.user_id] = visit_times
+  return {user_id: avg(durations) for user_id, durations
+	  in user_times.items()}
+#+END_SRC
+
+But now, product comes to me asking for the total time by country, I need to change everything
+#+BEGIN_SRC python
+  country_times = {}
+  for visit in visit_log:
+      visit_times = country_times.get(visit.country, [])
+      visit_times.append(visit.duration)
+      country_times[visit.country] = visit_times
+  return {country: sum(durations) for country, durations
+	  in country_times.items()}
+#+END_SRC
+** Why should you know SQL
+What if you knew SQL? The first problem would be as simple as:
+#+BEGIN_SRC sql
+  SELECT user_id, avg(duration) FROM visit_log GROUP BY user_id;
+#+END_SRC
+
+And when product comes and asks for the total time by country, the change is simple
+#+BEGIN_SRC sql
+  SELECT country, sum(duration) FROM visit_log
+  GROUP BY country;
+#+END_SRC
+* Docker
+** Docker
+I've created a docker container with an example database and =pgcli= as a frontend to provide auto-completions
+[[./images/autocomplete.png]]
+* Getting Started
+** Getting Started
+Upon launching the docker image you will be dropped into the pgcli shell
+
+First we need to find our way around the database. PostgreSQL supports a =\d= command which will list the database tables
+** Listing Columns
+So as we can see, we have the tables:
+- =customer=
+- =transaction=
+- =line_item=
+
+Next we need to see what fields are available on each table. The =\d= command also accepts a table name as a parameter to show us information on the table
+** Listing Items
+Lets find out what items have been purchased:
+#+BEGIN_SRC sql
+  SELECT * FROM line_item;
+#+END_SRC
+** Listing Items
+But what if we want to only get the names of the items?
+#+BEGIN_SRC sql
+  SELECT name FROM line_item;
+#+END_SRC
+** Listing Items
+We can also list multiple columns
+#+BEGIN_SRC sql
+  SELECT name, cost FROM line_item;
+#+END_SRC
+* Logic
+** Sorting
+What if we wanted to find the most expensive item that was bought in our store? For this we can use sorting and limiting:
+#+BEGIN_SRC sql
+  SELECT * FROM line_item ORDER BY cost DESC LIMIT 1;
+#+END_SRC
+** Aggregations
+One of the ways we can perform logic on the data is through aggregations
+- =count=
+- =min=
+- =max=
+- =sum=
+- and many others
+
+For example, lets find out the total revenue for our store:
+#+BEGIN_SRC sql
+  select sum(cost) from line_item;
+#+END_SRC
+** Filtering
+Up until now we've been operating on the whole table, but what if we wanted to list all the customers from the US?
+#+BEGIN_SRC sql
+  SELECT * FROM customer WHERE country='US';
+#+END_SRC
+
+This also works with aggregations. For example, to find the total cost of a single transaction:
+#+BEGIN_SRC sql
+  SELECT sum(cost) FROM line_item WHERE transaction_id=1;
+#+END_SRC
+** Group By
+Using =WHERE= is great for getting the total cost of a single transaction, but what if we wanted to find the total cost for each transaction? For that we can use =GROUP BY= to group rows and perform aggregations on them
+#+BEGIN_SRC sql
+  SELECT transaction_id, sum(cost) FROM line_item
+  GROUP BY transaction_id;
+#+END_SRC
+** Join
+Join is a complex beast, there are multiple types of joins:
+#+ATTR_LATEX: :width 0.7\textwidth
+[[./images/joins.jpg]]
+** Join
+We're going to just cover the simplest form of the =inner join=. With an =inner join=, rows are not duplicated and only rows with a match are returned.
+
+Lets list all the transactions and return the name of the customer along with it:
+#+BEGIN_SRC sql
+  SELECT customer.name, transaction.* FROM transaction
+  JOIN customer ON customer.id=transaction.customer_id;
+#+END_SRC
+** All together now
+What does the following query do? (without running it yourself)
+#+BEGIN_SRC sql
+  SELECT * FROM line_item
+  JOIN transaction ON transaction.id=line_item.transaction_id
+  JOIN customer ON customer.id=transaction.customer_id;
+#+END_SRC
+* Real World Examples
+** Real World Examples
+Count our candidates by country
+#+BEGIN_SRC sql
+  SELECT country, count(*) FROM candidate
+  GROUP BY country
+  ORDER BY count DESC;
+#+END_SRC
+** Where the engineers at?
+#+BEGIN_SRC sql
+  SELECT location, count(*) FROM candidate_work_experience
+  WHERE functional_area_category='engineering'
+  GROUP BY location
+  ORDER BY count desc
+  limit 100;
+#+END_SRC
+* Exercises
+** Exercises
+*** Exercise 1
+List the 3 most expensive items bought at our store
+*** Exercise 2
+List the most expensive total transaction
+*** Exercise 3
+List the most expensive item bought by a customer in the US
+*** Extra Credit
+List the total cost, transaction id, and customer id of each transaction by each customer
+* Exercise Answer
+** Exercise 1
+List the 3 most expensive items bought at our store
+#+BEGIN_SRC sql
+  SELECT * FROM line_item ORDER BY cost DESC limit 3;
+#+END_SRC
+** Exercise 2
+List the most expensive total transaction
+#+BEGIN_SRC sql
+  SELECT transaction_id, sum(cost) FROM line_item
+  GROUP BY transaction_id
+  ORDER BY sum(cost) DESC
+  LIMIT 1;
+#+END_SRC
+** Exercise 3
+List the price of the most expensive item bought by a customer in the US
+#+BEGIN_SRC sql
+  SELECT line_item.cost FROM line_item
+  JOIN transaction ON transaction.id=line_item.transaction_id
+  JOIN customer ON customer.id=transaction.customer_id
+  WHERE customer.country='US'
+  ORDER BY line_item.cost DESC;
+#+END_SRC
+** Extra Credit
+List the total cost, transaction id, and customer id of each transaction by each customer
+#+BEGIN_SRC sql
+  SELECT sum(line_item.cost), transaction.id, customer.id
+  FROM line_item
+  JOIN transaction ON transaction.id=line_item.transaction_id
+  JOIN customer ON customer.id=transaction.customer_id
+  GROUP BY transaction.id, customer.id
+  ORDER BY sum(line_item.cost) DESC;
+#+END_SRC
