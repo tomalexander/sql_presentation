@@ -4,7 +4,7 @@ RUN apk --no-cache add bash postgresql postgresql-dev openrc python2 python2-dev
 RUN python -m ensurepip
 RUN pip install --upgrade pip
 RUN pip install pgcli
-run install -d /run/postgresql -o postgres -g postgres -m 755
+RUN install -d /run/postgresql -o postgres -g postgres -m 755
 
 USER postgres
 RUN /usr/bin/initdb -D /var/lib/postgresql/data
