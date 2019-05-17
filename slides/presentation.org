@@ -13,6 +13,9 @@
 #+CREATOR: Emacs 26.1 (Org mode 9.1.9)
 #+latex_header: \mode<beamer>{\usetheme{Madrid}}
 #+BEAMER_COLOR_THEME: rose
+#+LaTeX_HEADER: \usemintedstyle{tango}
+#+latex_header: \definecolor{mintedbg}{HTML}{FFF8DC}
+#+BEAMER_HEADER: \AtBeginSection[]{\begin{frame}<beamer>\frametitle{Presentat‌‌ion agenda}\tableofcontents[currentsection]\end{frame}}
 * Intro
 ** What is SQL
 - SQL is a standardized language for interacting with relational databases
@@ -75,6 +78,8 @@ And when product comes and asks for the total time by country, the change is sim
 ** Docker
 I've created a docker container with an example database and =pgcli= as a frontend to provide auto-completions
 [[./images/autocomplete.png]]
+
+[[https://github.com/tomalexander/sql_presentation]]
 * Getting Started
 ** Getting Started
 Upon launching the docker image you will be dropped into the pgcli shell
